@@ -1,0 +1,50 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Room {
+  id                      String        @id
+  ownerTokenHash          String
+  timer                   String        // '10s', '1m', '5m', '1h', '24h', 'never'
+  status                  String        // 'waiting', 'active', 'locked', 'destroyed'
+  isLocked                Boolean       @default(false)
+  createdAt               DateTime      @default(now())
+  expiresAt               DateTime?
+  participants            Participant[]
+  messages                Message[]
+}
+
+model Participant {
+  id               String   @id @default(uuid())
+  roomId           String
+  room             Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  socketId         String
+  slot             String   // 'owner' | 'guest'
+  token            String?
+  ecdhPublicKeyHex String
+  fingerprint      String
+  joinedAt         DateTime @default(now())
+}
+
+model Message {
+  id             String    @id @default(uuid())
+  roomId         String
+  room           Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  senderSlot     String    // 'owner' | 'guest'
+  ciphertext     String
+  iv             String
+  aad            String
+  fileMetadata   String?   // JSON string if attached
+  sentAt         DateTime  @default(now())
+  readAt         DateTime?
+  expiresAt      DateTime?
+  ttlSeconds     Int?
+  status         String    @default("sent") // 'sent' | 'delivered' | 'read'
+  replyToId      String?
+  reactionsJson  String    @default("{}")
+}
