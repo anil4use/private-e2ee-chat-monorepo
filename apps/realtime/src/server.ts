@@ -43,6 +43,10 @@ const upload = multer({ storage, limits: { fileSize: 25 * 1024 * 1024 } });
 app.use(cors({ origin: '*' }));
 app.use(express.json());
 
+// Health & Root Endpoints
+app.get('/', (_req, res) => res.status(200).send('E2EE Realtime Socket Server Active'));
+app.get('/health', (_req, res) => res.status(200).json({ status: 'ok', timestamp: Date.now() }));
+
 // REST Endpoint: Create Room
 app.post('/api/rooms', async (req, res) => {
   try {
@@ -641,6 +645,6 @@ setInterval(async () => {
   }
 }, 1000);
 
-server.listen(PORT, () => {
-  console.log(`[E2EE Realtime Socket.IO Server] Running on http://localhost:${PORT}`);
+server.listen(Number(PORT), '0.0.0.0', () => {
+  console.log(`[E2EE Realtime Socket.IO Server] Running on http://0.0.0.0:${PORT}`);
 });
