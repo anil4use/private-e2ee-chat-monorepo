@@ -251,7 +251,7 @@ io.on('connection', (socket: Socket) => {
       cb({
         success: true,
         timer: room.timer,
-        messages: messages.map((m) => ({
+        messages: messages.map((m: any) => ({
           id: m.id,
           roomId: m.roomId,
           senderSlot: m.senderSlot as 'owner' | 'guest',
@@ -589,8 +589,8 @@ async function sendPresenceUpdate(roomId: string) {
   const participantsInDb = await prisma.participant.findMany({ where: { roomId } });
   const activeSocketsInRoom = Array.from(activeSockets.values()).filter((s) => s.roomId === roomId);
 
-  const participantsList = participantsInDb.map((p) => {
-    const isOnline = activeSocketsInRoom.some((s) => s.slot === p.slot);
+  const participantsList = participantsInDb.map((p: any) => {
+    const isOnline = activeSocketsInRoom.some((s: any) => s.slot === p.slot);
     return {
       id: p.id,
       role: p.slot === 'owner' ? ('owner' as const) : ('guest' as const),
