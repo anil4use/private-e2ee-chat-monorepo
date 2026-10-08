@@ -634,8 +634,10 @@ setInterval(async () => {
     for (const room of staleRooms) {
       await prisma.room.delete({ where: { id: room.id } });
     }
-  } catch (err) {
-    console.error('Sweeper error:', err);
+  } catch (err: any) {
+    if (err?.code !== 'P2021') {
+      console.error('Sweeper error:', err);
+    }
   }
 }, 1000);
 
