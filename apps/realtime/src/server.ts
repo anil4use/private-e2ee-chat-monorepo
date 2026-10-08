@@ -52,12 +52,14 @@ app.use((req, res, next) => {
     return next();
   }
 
+  const headers = { ...req.headers, host: '127.0.0.1:3000' };
+
   const options = {
     hostname: '127.0.0.1',
     port: 3000,
     path: req.url,
     method: req.method,
-    headers: req.headers
+    headers
   };
 
   const proxyReq = http.request(options, (proxyRes) => {
