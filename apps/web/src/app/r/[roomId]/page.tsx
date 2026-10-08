@@ -23,6 +23,10 @@ import { WaitingRoom } from '@/components/WaitingRoom';
 import { HostApprovalModal } from '@/components/HostApprovalModal';
 import { ShareLinkModal } from '@/components/ShareLinkModal';
 import { SafetyCodeModal } from '@/components/SafetyCodeModal';
+import { MediaLightboxModal } from '@/components/MediaLightboxModal';
+import { PanicModal } from '@/components/PanicModal';
+import { ExpiryBanner } from '@/components/ExpiryBanner';
+import { sounds } from '@/lib/sound';
 import confetti from 'canvas-confetti';
 
 export default function RoomPage() {
@@ -57,6 +61,8 @@ export default function RoomPage() {
   // Modals state
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isSafetyModalOpen, setIsSafetyModalOpen] = useState(false);
+  const [isPanicModalOpen, setIsPanicModalOpen] = useState(false);
+  const [lightboxMedia, setLightboxMedia] = useState<{ url: string; name: string } | null>(null);
   const [shareUrl, setShareUrl] = useState('');
 
   useEffect(() => {
@@ -195,6 +201,7 @@ export default function RoomPage() {
     // Message events
     socket.on('msg:new', (newMsg: Message) => {
       setMessages((prev) => [...prev, newMsg]);
+      sounds.playReceive();
     });
 
     socket.on('msg:status-updated', (data: { messageId: string; status: any; readAt?: number; expiresAt?: number }) => {
@@ -325,6 +332,20 @@ export default function RoomPage() {
     }
   };
 
+  const handlePanicWipe = () => {
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(`owner_token_${roomId}`);
+        const socket = getSocket();
+        socket.disconnect();
+      }
+    } catch {
+      // Ignore
+    } finally {
+      window.location.href = '/';
+    }
+  };
+
   if (!isApproved && slot === 'guest') {
     return <WaitingRoom guestFingerprint={ownFingerprint} shareUrl={shareUrl} />;
   }
@@ -341,7 +362,10 @@ export default function RoomPage() {
         onOpenSafetyCode={() => setIsSafetyModalOpen(true)}
         onLockRoom={handleLockRoom}
         onDestroyRoom={handleDestroyRoom}
+        onTriggerPanic={() => setIsPanicModalOpen(true)}
       />
+
+      <ExpiryBanner timer={timer} />
 
       <main className="flex-1">
         <SplitChatView
@@ -358,6 +382,7 @@ export default function RoomPage() {
           onReactMessage={handleReactMessage}
           onTypingStart={handleTypingStart}
           onTypingStop={handleTypingStop}
+          onOpenMedia={(url, name) => setLightboxMedia({ url, name })}
         />
       </main>
 
@@ -383,6 +408,19 @@ export default function RoomPage() {
         guestFingerprint={slot === 'guest' ? ownFingerprint : peerFingerprint}
         isVerified={isVerified}
         onToggleVerify={() => setIsVerified(!isVerified)}
+      />
+
+      <MediaLightboxModal
+        isOpen={!!lightboxMedia}
+        onClose={() => setLightboxMedia(null)}
+        imageUrl={lightboxMedia?.url || null}
+        fileName={lightboxMedia?.name || ''}
+      />
+
+      <PanicModal
+        isOpen={isPanicModalOpen}
+        onClose={() => setIsPanicModalOpen(false)}
+        onConfirmWipe={handlePanicWipe}
       />
     </div>
   );

@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Lock, ShieldCheck, Share2, KeyRound, LockKeyhole, Trash2, Clock, MoreVertical, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Lock, ShieldCheck, Share2, KeyRound, LockKeyhole, Trash2, Clock, MoreVertical, X, Volume2, VolumeX, ShieldAlert } from 'lucide-react';
 import { SelfDestructTimer, RoomStatus } from '@e2ee-chat/shared';
 import { motion, AnimatePresence } from 'framer-motion';
+import { sounds } from '@/lib/sound';
 
 interface NavbarProps {
   roomId: string;
@@ -15,13 +16,34 @@ interface NavbarProps {
   onOpenSafetyCode: () => void;
   onLockRoom?: () => void;
   onDestroyRoom?: () => void;
+  onTriggerPanic?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   roomId, isOwner, timer, roomStatus, isVerified,
-  onOpenShare, onOpenSafetyCode, onLockRoom, onDestroyRoom
+  onOpenShare, onOpenSafetyCode, onLockRoom, onDestroyRoom, onTriggerPanic
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+
+  useEffect(() => {
+    setSoundEnabled(sounds.isEnabled());
+
+    // Hotkey listener for Ctrl+Shift+X (Panic Wipe)
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key.toUpperCase() === 'X') {
+        e.preventDefault();
+        onTriggerPanic?.();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onTriggerPanic]);
+
+  const toggleSound = () => {
+    const newState = sounds.toggle();
+    setSoundEnabled(newState);
+  };
 
   return (
     <header className="sticky top-0 z-40 w-full glass-panel border-b border-white/10">
@@ -54,6 +76,19 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Desktop actions */}
         <div className="hidden sm:flex items-center gap-2">
+          {/* Sound Mute/Unmute */}
+          <button
+            onClick={toggleSound}
+            className={`p-2 rounded-xl border transition-all ${
+              soundEnabled
+                ? 'bg-white/5 hover:bg-white/10 text-cyan-400 border-white/10'
+                : 'bg-white/5 hover:bg-white/10 text-slate-500 border-white/5'
+            }`}
+            title={soundEnabled ? 'Mute Sound Effects' : 'Enable Sound Effects'}
+          >
+            {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+          </button>
+
           <button
             onClick={onOpenSafetyCode}
             className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all border ${
@@ -73,6 +108,18 @@ export const Navbar: React.FC<NavbarProps> = ({
             <Share2 className="w-3.5 h-3.5" />
             <span>Invite Link</span>
           </button>
+
+          {/* Emergency Panic Button */}
+          {onTriggerPanic && (
+            <button
+              onClick={onTriggerPanic}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 text-xs font-bold transition-all"
+              title="Emergency Session Wipe (Ctrl+Shift+X)"
+            >
+              <ShieldAlert className="w-3.5 h-3.5" />
+              <span className="hidden lg:inline">Panic</span>
+            </button>
+          )}
 
           {isOwner && (
             <div className="flex items-center gap-1 ml-1 pl-2 border-l border-white/10">

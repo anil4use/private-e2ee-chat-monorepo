@@ -15,6 +15,7 @@ interface MessageBubbleProps {
   onDelete?: (messageId: string) => void;
   onEdit?: (messageId: string, currentText: string) => void;
   onReact?: (messageId: string, emoji: string) => void;
+  onOpenMedia?: (url: string, name: string) => void;
 }
 
 const quickEmojis = ['❤️', '👍', '🔥', '😮', '😂', '🎉'];
@@ -27,7 +28,8 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   onReply,
   onDelete,
   onEdit,
-  onReact
+  onReact,
+  onOpenMedia
 }) => {
   const [decryptedText, setDecryptedText] = useState<string>('');
   const [isDecrypting, setIsDecrypting] = useState(true);
@@ -132,7 +134,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
       transition={{ type: 'spring', stiffness: 380, damping: 32, mass: 0.8 }}
       className={`group relative flex flex-col my-1 max-w-[78%] ${isSelf ? 'ml-auto items-end' : 'mr-auto items-start'}`}
     >
-      {/* Sender label — only shown on first of a group (simplified: always shown) */}
+      {/* Sender label */}
       <span className="text-[10px] text-slate-500 font-mono mb-1 px-1 tracking-wide uppercase select-none">
         {isSelf ? 'You' : (message.senderSlot === 'owner' ? 'Host' : 'Guest')}
       </span>
@@ -183,7 +185,12 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           }`}>
             {decryptedFileUrl ? (
               decryptedFileUrl && message.encryptedData.fileMetadata.mimeTypeEncrypted.startsWith('image/') ? (
-                <img src={decryptedFileUrl} alt="attachment" className="max-h-48 w-full rounded-lg object-cover" />
+                <img
+                  src={decryptedFileUrl}
+                  alt="attachment"
+                  onClick={() => onOpenMedia && onOpenMedia(decryptedFileUrl, message.encryptedData.fileMetadata?.fileNameEncrypted || 'Image')}
+                  className="max-h-56 w-full rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                />
               ) : (
                 <div className="flex items-center gap-3 w-full">
                   <div className={`p-2 rounded-lg ${isSelf ? 'bg-white/20' : 'bg-cyan-500/20 text-cyan-400'}`}>

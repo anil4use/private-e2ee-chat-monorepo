@@ -7,6 +7,9 @@ import { MessageBubble } from './MessageBubble';
 import { Send, Paperclip, ShieldCheck, Lock, Image } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+import { sounds } from '@/lib/sound';
+import { Upload } from 'lucide-react';
+
 interface SplitChatViewProps {
   roomId: string;
   roomKey: CryptoKey | null;
@@ -21,6 +24,7 @@ interface SplitChatViewProps {
   onReactMessage: (messageId: string, emoji: string) => void;
   onTypingStart: () => void;
   onTypingStop: () => void;
+  onOpenMedia?: (url: string, name: string) => void;
 }
 
 export const SplitChatView: React.FC<SplitChatViewProps> = ({
@@ -37,11 +41,13 @@ export const SplitChatView: React.FC<SplitChatViewProps> = ({
   onReactMessage,
   onTypingStart,
   onTypingStop,
+  onOpenMedia
 }) => {
   const [inputText, setInputText] = useState('');
   const [replyToId, setReplyToId] = useState<string | undefined>(undefined);
   const [isUploading, setIsUploading] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -75,6 +81,7 @@ export const SplitChatView: React.FC<SplitChatViewProps> = ({
     const text = inputText.trim();
     if (!text || !roomKey || isSending) return;
     setIsSending(true);
+    sounds.playSend();
     try {
       const aad = `AAD:${currentSlot}:${roomId}:${Date.now()}`;
       const encryptedData = await encryptMessageText(text, roomKey, aad);
@@ -95,11 +102,11 @@ export const SplitChatView: React.FC<SplitChatViewProps> = ({
     if (e.key === 'Escape') setReplyToId(undefined);
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const processFile = async (file: File) => {
     if (!file || !roomKey) return;
     try {
       setIsUploading(true);
+      sounds.playSend();
       const buffer = await file.arrayBuffer();
       const { encryptedBuffer, ivHex, rawFileKeyHex } = await encryptFileBuffer(buffer);
       const blob = new Blob([encryptedBuffer], { type: 'application/octet-stream' });
@@ -133,8 +140,52 @@ export const SplitChatView: React.FC<SplitChatViewProps> = ({
     }
   };
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) processFile(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) processFile(file);
+  };
+
   return (
-    <div className="flex flex-col h-[calc(100vh-65px)] max-w-2xl mx-auto w-full">
+    <div
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      className="relative flex flex-col h-[calc(100vh-65px)] max-w-2xl mx-auto w-full"
+    >
+      {/* Drag & Drop Overlay */}
+      <AnimatePresence>
+        {isDragging && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-slate-950/90 border-2 border-dashed border-cyan-400 rounded-2xl backdrop-blur-md p-6"
+          >
+            <div className="w-16 h-16 rounded-2xl bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center text-cyan-400 animate-bounce">
+              <Upload className="w-8 h-8" />
+            </div>
+            <p className="text-base font-bold text-cyan-300">Drop file to encrypt & send</p>
+            <p className="text-xs text-slate-400 font-mono">Files are client-side AES-256-GCM encrypted before uploading</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Peer Header ── */}
       <div className="flex-shrink-0 flex items-center gap-3 px-4 py-3 border-b border-white/8 bg-slate-950/80 backdrop-blur-xl">
@@ -213,6 +264,7 @@ export const SplitChatView: React.FC<SplitChatViewProps> = ({
                 onDelete={onDeleteMessage}
                 onEdit={onEditMessage}
                 onReact={onReactMessage}
+                onOpenMedia={onOpenMedia}
               />
             ))
           )}
