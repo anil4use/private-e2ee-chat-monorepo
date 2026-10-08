@@ -43,9 +43,48 @@ const upload = multer({ storage, limits: { fileSize: 25 * 1024 * 1024 } });
 app.use(cors({ origin: '*' }));
 app.use(express.json());
 
-// Health & Root Endpoints
-app.get('/', (_req, res) => res.status(200).send('E2EE Realtime Socket Server Active'));
+// Health Check Endpoint
 app.get('/health', (_req, res) => res.status(200).json({ status: 'ok', timestamp: Date.now() }));
+
+// Reverse proxy non-API / non-socket web requests to Next.js frontend (port 3000)
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) {
+    return next();
+  }
+
+  const options = {
+    hostname: '127.0.0.1',
+    port: 3000,
+    path: req.url,
+    method: req.method,
+    headers: req.headers
+  };
+
+  const proxyReq = http.request(options, (proxyRes) => {
+    res.writeHead(proxyRes.statusCode || 200, proxyRes.headers);
+    proxyRes.pipe(res, { end: true });
+  });
+
+  proxyReq.on('error', () => {
+    res.status(200).send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Vault E2EE | Starting...</title>
+          <meta http-equiv="refresh" content="3">
+        </head>
+        <body style="background:#070a12;color:#06b6d4;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
+          <div style="text-align:center;">
+            <h2 style="font-size:24px;margin-bottom:8px;">⚡ Encrypted Vault Initializing...</h2>
+            <p style="color:#94a3b8;font-size:14px;">The application is booting up. Reloading automatically in 3 seconds...</p>
+          </div>
+        </body>
+      </html>
+    `);
+  });
+
+  req.pipe(proxyReq, { end: true });
+});
 
 // REST Endpoint: Create Room
 app.post('/api/rooms', async (req, res) => {
