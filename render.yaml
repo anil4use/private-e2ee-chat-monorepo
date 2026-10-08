@@ -1,0 +1,25 @@
+services:
+  # 1. Realtime Socket.IO Server
+  - type: web
+    name: e2ee-chat-realtime
+    env: node
+    rootDir: apps/realtime
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: PORT
+        value: 10000
+
+  # 2. Next.js Frontend App
+  - type: web
+    name: e2ee-chat-web
+    env: node
+    rootDir: apps/web
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: e2ee-chat-realtime
+          property: host
