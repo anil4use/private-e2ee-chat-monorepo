@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { getSocket } from '@/lib/socket';
 import {
@@ -26,8 +26,12 @@ import { SafetyCodeModal } from '@/components/SafetyCodeModal';
 import { MediaLightboxModal } from '@/components/MediaLightboxModal';
 import { PanicModal } from '@/components/PanicModal';
 import { ExpiryBanner } from '@/components/ExpiryBanner';
+import { Toast } from '@/components/Toast';
+import { useToast } from '@/hooks/useToast';
 import { sounds } from '@/lib/sound';
 import confetti from 'canvas-confetti';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ShieldOff, Wifi, WifiOff } from 'lucide-react';
 
 export default function RoomPage() {
   const params = useParams();
@@ -41,6 +45,8 @@ export default function RoomPage() {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [typingSlot, setTypingSlot] = useState<'owner' | 'guest' | null>(null);
+  const [isSocketConnected, setIsSocketConnected] = useState(true);
+  const [isDestroyed, setIsDestroyed] = useState(false);
 
   // ECDH Keys & Fingerprints
   const ecdhKeyPairRef = useRef<CryptoKeyPair | null>(null);
@@ -62,8 +68,11 @@ export default function RoomPage() {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isSafetyModalOpen, setIsSafetyModalOpen] = useState(false);
   const [isPanicModalOpen, setIsPanicModalOpen] = useState(false);
+  const [isDestroyConfirmOpen, setIsDestroyConfirmOpen] = useState(false);
   const [lightboxMedia, setLightboxMedia] = useState<{ url: string; name: string } | null>(null);
   const [shareUrl, setShareUrl] = useState('');
+
+  const { toasts, addToast, dismissToast } = useToast();
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -111,6 +120,8 @@ export default function RoomPage() {
             if (res.success) {
               if (res.timer) setTimer(res.timer as SelfDestructTimer);
               if (res.messages) setMessages(res.messages);
+            } else {
+              addToast('error', 'Room Access Denied', res.message || 'Could not register as room owner.');
             }
           }
         );
@@ -125,7 +136,7 @@ export default function RoomPage() {
           { roomId, ecdhPublicKeyHex: pubKeyHex, hmacSignature: hmacSig },
           (res: any) => {
             if (!res.success) {
-              alert(res.message || 'Failed to join room');
+              addToast('error', 'Cannot Join Room', res.message || 'Failed to join room');
             }
           }
         );
@@ -136,6 +147,15 @@ export default function RoomPage() {
 
     // SOCKET LISTENERS
 
+    // Connection state
+    socket.on('connect', () => {
+      if (mounted) setIsSocketConnected(true);
+    });
+
+    socket.on('disconnect', () => {
+      if (mounted) setIsSocketConnected(false);
+    });
+
     // Host receives join request from guest
     socket.on('room:join-requested', (data: { guestSocketId: string; ecdhPublicKeyHex: string; fingerprint: string }) => {
       peerPubKeyHexRef.current = data.ecdhPublicKeyHex;
@@ -144,6 +164,7 @@ export default function RoomPage() {
       const isOwner = !!localStorage.getItem(`owner_token_${roomId}`);
       if (isOwner) {
         setPendingApproval(data);
+        sounds.playReceive();
       }
     });
 
@@ -170,15 +191,17 @@ export default function RoomPage() {
 
             // Trigger celebration confetti on guest entry!
             confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
+            addToast('success', 'Secure Channel Open', 'You are now connected with end-to-end encryption.');
           }
         } catch (err) {
           console.error('Guest unwrapping room key failed:', err);
+          addToast('error', 'Key Exchange Failed', 'Could not establish encrypted channel. Please refresh and try again.');
         }
       }
     );
 
     socket.on('room:rejected', (data: { reason: string }) => {
-      alert(data.reason || 'Room owner rejected your request.');
+      addToast('warning', 'Access Denied', data.reason || 'Room owner rejected your join request.');
     });
 
     socket.on('room:status-changed', (data: { status: RoomStatus; isLocked: boolean }) => {
@@ -186,8 +209,10 @@ export default function RoomPage() {
     });
 
     socket.on('room:destroyed', () => {
-      alert('Room owner has destroyed this session. All data has been wiped.');
-      window.location.href = '/';
+      if (mounted) setIsDestroyed(true);
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 4000);
     });
 
     socket.on('presence:update', (data: { participants: Participant[] }) => {
@@ -236,6 +261,8 @@ export default function RoomPage() {
 
     return () => {
       mounted = false;
+      socket.off('connect');
+      socket.off('disconnect');
       socket.off('room:join-requested');
       socket.off('room:approved');
       socket.off('room:rejected');
@@ -265,17 +292,21 @@ export default function RoomPage() {
         guestSocketId: pendingApproval.guestSocketId,
         wrappedRoomKeyHex,
         ivHex,
-        ownerEcdhPublicKeyHex: ownPubKeyHexRef.current
+        ownerEcdhPublicKeyHex: ownPubKeyHexRef.current,
+        ownerFingerprint: ownFingerprint
       });
 
       // Compute Safety Code
       const code = await computeSafetyCode(ownPubKeyHexRef.current, pendingApproval.ecdhPublicKeyHex);
       setSafetyCode(code);
+      setPeerFingerprint(pendingApproval.fingerprint);
       setPendingApproval(null);
 
       confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
+      addToast('success', 'Guest Admitted', 'Secure session started with your guest.');
     } catch (err) {
       console.error('Approve guest error:', err);
+      addToast('error', 'Approval Failed', 'Could not complete key exchange with guest.');
     }
   };
 
@@ -284,13 +315,17 @@ export default function RoomPage() {
     const socket = getSocket();
     socket.emit('room:reject', { roomId, guestSocketId: pendingApproval.guestSocketId });
     setPendingApproval(null);
+    addToast('info', 'Request Rejected', 'Guest join request was denied.');
   };
 
   // Chat message handlers
   const handleSendMessage = (encryptedData: any, replyToId?: string) => {
     const socket = getSocket();
     socket.emit('msg:send', { roomId, encryptedData, replyToId }, (res: any) => {
-      if (!res.success) console.warn('Message send error:', res.message);
+      if (!res.success) {
+        console.warn('Message send error:', res.message);
+        addToast('error', 'Send Failed', res.message || 'Message could not be delivered.');
+      }
     });
   };
 
@@ -324,12 +359,16 @@ export default function RoomPage() {
 
   const handleLockRoom = () => {
     getSocket().emit('room:lock', { roomId });
+    addToast('info', 'Room Locked', 'No new guests can join this session.');
   };
 
   const handleDestroyRoom = () => {
-    if (confirm('Are you sure you want to destroy this room? All encrypted messages will be deleted permanently.')) {
-      getSocket().emit('room:destroy', { roomId });
-    }
+    setIsDestroyConfirmOpen(true);
+  };
+
+  const handleConfirmDestroy = () => {
+    setIsDestroyConfirmOpen(false);
+    getSocket().emit('room:destroy', { roomId });
   };
 
   const handlePanicWipe = () => {
@@ -346,8 +385,45 @@ export default function RoomPage() {
     }
   };
 
+  // Room destroyed overlay
+  if (isDestroyed) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-mesh-gradient px-4">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center"
+        >
+          <div className="w-20 h-20 rounded-3xl bg-red-500/20 border border-red-500/40 flex items-center justify-center mx-auto mb-6">
+            <ShieldOff className="w-10 h-10 text-red-400" />
+          </div>
+          <h2 className="text-2xl font-black text-white mb-2">Session Destroyed</h2>
+          <p className="text-slate-400 text-sm max-w-xs mx-auto leading-relaxed">
+            The room owner has terminated this session. All encrypted messages have been permanently wiped.
+          </p>
+          <p className="text-slate-600 text-xs mt-4">Redirecting to home in a moment...</p>
+          <div className="flex justify-center gap-1 mt-4">
+            {[0,1,2].map(i => (
+              <motion.div
+                key={i}
+                className="w-1.5 h-1.5 rounded-full bg-red-400"
+                animate={{ opacity: [0.3, 1, 0.3] }}
+                transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
+              />
+            ))}
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
   if (!isApproved && slot === 'guest') {
-    return <WaitingRoom guestFingerprint={ownFingerprint} shareUrl={shareUrl} />;
+    return (
+      <>
+        <WaitingRoom guestFingerprint={ownFingerprint} shareUrl={shareUrl} />
+        <Toast toasts={toasts} onDismiss={dismissToast} />
+      </>
+    );
   }
 
   return (
@@ -366,6 +442,23 @@ export default function RoomPage() {
       />
 
       <ExpiryBanner timer={timer} />
+
+      {/* Disconnection banner */}
+      <AnimatePresence>
+        {!isSocketConnected && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="flex items-center justify-center gap-2 py-2 bg-amber-500/15 border-b border-amber-500/30 text-amber-300 text-xs font-semibold">
+              <WifiOff className="w-3.5 h-3.5" />
+              Reconnecting to server...
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <main className="flex-1">
         <SplitChatView
@@ -422,6 +515,60 @@ export default function RoomPage() {
         onClose={() => setIsPanicModalOpen(false)}
         onConfirmWipe={handlePanicWipe}
       />
+
+      {/* Destroy Room Confirmation Modal */}
+      <AnimatePresence>
+        {isDestroyConfirmOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md"
+              onClick={() => setIsDestroyConfirmOpen(false)}
+            />
+            <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+              <motion.div
+                initial={{ y: 80, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: 80, opacity: 0 }}
+                transition={{ type: 'spring', stiffness: 360, damping: 28 }}
+                className="w-full sm:max-w-md glass-panel rounded-t-3xl sm:rounded-3xl border border-red-500/20 p-6 pb-8 sm:pb-6 shadow-2xl"
+              >
+                <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mb-5 sm:hidden" />
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-11 h-11 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center">
+                    <ShieldOff className="w-5 h-5 text-red-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-white">Destroy Room?</h3>
+                    <p className="text-xs text-slate-400">This action cannot be undone</p>
+                  </div>
+                </div>
+                <p className="text-sm text-slate-300 mb-6 leading-relaxed">
+                  All encrypted messages and participant data will be <span className="text-red-400 font-semibold">permanently deleted</span> from the server. Both parties will be disconnected immediately.
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setIsDestroyConfirmOpen(false)}
+                    className="py-3.5 rounded-2xl bg-white/8 hover:bg-white/12 text-slate-300 font-bold text-sm border border-white/10 transition-all active:scale-95"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleConfirmDestroy}
+                    className="py-3.5 rounded-2xl bg-red-600 hover:bg-red-500 text-white font-black text-sm transition-all active:scale-95"
+                    style={{ boxShadow: '0 0 20px -4px rgba(239,68,68,0.5)' }}
+                  >
+                    Destroy Room
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Toast Notifications */}
+      <Toast toasts={toasts} onDismiss={dismissToast} />
     </div>
   );
 }
