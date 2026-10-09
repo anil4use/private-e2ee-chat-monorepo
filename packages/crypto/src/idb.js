@@ -60,6 +60,10 @@ async function removeRoomKeyFromIDB(roomId) {
         const tx = db.transaction(STORE_NAME, 'readwrite');
         const store = tx.objectStore(STORE_NAME);
         store.delete(roomId);
+        await new Promise((res, rej) => {
+            tx.oncomplete = () => res();
+            tx.onerror = () => rej(tx.error);
+        });
     }
     catch (err) {
         console.warn('Failed to delete key from IndexedDB:', err);

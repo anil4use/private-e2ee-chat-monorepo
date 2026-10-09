@@ -26,6 +26,8 @@ export interface EncryptedFileMetadata {
     fileSize: number;
     mimeTypeEncrypted: string;
     fileKeyEncrypted: string;
+    fileKeyIv: string;
+    fileKeyAad: string;
     ivHex: string;
     downloadUrl: string;
 }
@@ -131,6 +133,7 @@ export interface SocketEvents {
         ivHex: string;
         ownerEcdhPublicKeyHex: string;
         ownerFingerprint: string;
+        timer?: SelfDestructTimer;
     }) => void;
     'room:rejected': (data: {
         reason: string;

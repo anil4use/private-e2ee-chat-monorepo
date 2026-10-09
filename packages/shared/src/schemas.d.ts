@@ -6,6 +6,8 @@ export declare const EncryptedFileMetadataSchema: z.ZodObject<{
     fileSize: z.ZodNumber;
     mimeTypeEncrypted: z.ZodString;
     fileKeyEncrypted: z.ZodString;
+    fileKeyIv: z.ZodString;
+    fileKeyAad: z.ZodString;
     ivHex: z.ZodString;
     downloadUrl: z.ZodString;
 }, "strip", z.ZodTypeAny, {
@@ -14,6 +16,8 @@ export declare const EncryptedFileMetadataSchema: z.ZodObject<{
     fileSize: number;
     mimeTypeEncrypted: string;
     fileKeyEncrypted: string;
+    fileKeyIv: string;
+    fileKeyAad: string;
     ivHex: string;
     downloadUrl: string;
 }, {
@@ -22,6 +26,8 @@ export declare const EncryptedFileMetadataSchema: z.ZodObject<{
     fileSize: number;
     mimeTypeEncrypted: string;
     fileKeyEncrypted: string;
+    fileKeyIv: string;
+    fileKeyAad: string;
     ivHex: string;
     downloadUrl: string;
 }>;
@@ -35,6 +41,8 @@ export declare const EncryptedPayloadSchema: z.ZodObject<{
         fileSize: z.ZodNumber;
         mimeTypeEncrypted: z.ZodString;
         fileKeyEncrypted: z.ZodString;
+        fileKeyIv: z.ZodString;
+        fileKeyAad: z.ZodString;
         ivHex: z.ZodString;
         downloadUrl: z.ZodString;
     }, "strip", z.ZodTypeAny, {
@@ -43,6 +51,8 @@ export declare const EncryptedPayloadSchema: z.ZodObject<{
         fileSize: number;
         mimeTypeEncrypted: string;
         fileKeyEncrypted: string;
+        fileKeyIv: string;
+        fileKeyAad: string;
         ivHex: string;
         downloadUrl: string;
     }, {
@@ -51,6 +61,8 @@ export declare const EncryptedPayloadSchema: z.ZodObject<{
         fileSize: number;
         mimeTypeEncrypted: string;
         fileKeyEncrypted: string;
+        fileKeyIv: string;
+        fileKeyAad: string;
         ivHex: string;
         downloadUrl: string;
     }>>;
@@ -64,6 +76,8 @@ export declare const EncryptedPayloadSchema: z.ZodObject<{
         fileSize: number;
         mimeTypeEncrypted: string;
         fileKeyEncrypted: string;
+        fileKeyIv: string;
+        fileKeyAad: string;
         ivHex: string;
         downloadUrl: string;
     } | undefined;
@@ -77,6 +91,8 @@ export declare const EncryptedPayloadSchema: z.ZodObject<{
         fileSize: number;
         mimeTypeEncrypted: string;
         fileKeyEncrypted: string;
+        fileKeyIv: string;
+        fileKeyAad: string;
         ivHex: string;
         downloadUrl: string;
     } | undefined;
@@ -113,6 +129,8 @@ export declare const SendMessageSchema: z.ZodObject<{
             fileSize: z.ZodNumber;
             mimeTypeEncrypted: z.ZodString;
             fileKeyEncrypted: z.ZodString;
+            fileKeyIv: z.ZodString;
+            fileKeyAad: z.ZodString;
             ivHex: z.ZodString;
             downloadUrl: z.ZodString;
         }, "strip", z.ZodTypeAny, {
@@ -121,6 +139,8 @@ export declare const SendMessageSchema: z.ZodObject<{
             fileSize: number;
             mimeTypeEncrypted: string;
             fileKeyEncrypted: string;
+            fileKeyIv: string;
+            fileKeyAad: string;
             ivHex: string;
             downloadUrl: string;
         }, {
@@ -129,6 +149,8 @@ export declare const SendMessageSchema: z.ZodObject<{
             fileSize: number;
             mimeTypeEncrypted: string;
             fileKeyEncrypted: string;
+            fileKeyIv: string;
+            fileKeyAad: string;
             ivHex: string;
             downloadUrl: string;
         }>>;
@@ -142,6 +164,8 @@ export declare const SendMessageSchema: z.ZodObject<{
             fileSize: number;
             mimeTypeEncrypted: string;
             fileKeyEncrypted: string;
+            fileKeyIv: string;
+            fileKeyAad: string;
             ivHex: string;
             downloadUrl: string;
         } | undefined;
@@ -155,6 +179,8 @@ export declare const SendMessageSchema: z.ZodObject<{
             fileSize: number;
             mimeTypeEncrypted: string;
             fileKeyEncrypted: string;
+            fileKeyIv: string;
+            fileKeyAad: string;
             ivHex: string;
             downloadUrl: string;
         } | undefined;
@@ -173,6 +199,8 @@ export declare const SendMessageSchema: z.ZodObject<{
             fileSize: number;
             mimeTypeEncrypted: string;
             fileKeyEncrypted: string;
+            fileKeyIv: string;
+            fileKeyAad: string;
             ivHex: string;
             downloadUrl: string;
         } | undefined;
@@ -191,6 +219,8 @@ export declare const SendMessageSchema: z.ZodObject<{
             fileSize: number;
             mimeTypeEncrypted: string;
             fileKeyEncrypted: string;
+            fileKeyIv: string;
+            fileKeyAad: string;
             ivHex: string;
             downloadUrl: string;
         } | undefined;
@@ -211,6 +241,8 @@ export declare const EditMessageSchema: z.ZodObject<{
             fileSize: z.ZodNumber;
             mimeTypeEncrypted: z.ZodString;
             fileKeyEncrypted: z.ZodString;
+            fileKeyIv: z.ZodString;
+            fileKeyAad: z.ZodString;
             ivHex: z.ZodString;
             downloadUrl: z.ZodString;
         }, "strip", z.ZodTypeAny, {
@@ -219,6 +251,8 @@ export declare const EditMessageSchema: z.ZodObject<{
             fileSize: number;
             mimeTypeEncrypted: string;
             fileKeyEncrypted: string;
+            fileKeyIv: string;
+            fileKeyAad: string;
             ivHex: string;
             downloadUrl: string;
         }, {
@@ -227,6 +261,8 @@ export declare const EditMessageSchema: z.ZodObject<{
             fileSize: number;
             mimeTypeEncrypted: string;
             fileKeyEncrypted: string;
+            fileKeyIv: string;
+            fileKeyAad: string;
             ivHex: string;
             downloadUrl: string;
         }>>;
@@ -240,6 +276,8 @@ export declare const EditMessageSchema: z.ZodObject<{
             fileSize: number;
             mimeTypeEncrypted: string;
             fileKeyEncrypted: string;
+            fileKeyIv: string;
+            fileKeyAad: string;
             ivHex: string;
             downloadUrl: string;
         } | undefined;
@@ -253,6 +291,8 @@ export declare const EditMessageSchema: z.ZodObject<{
             fileSize: number;
             mimeTypeEncrypted: string;
             fileKeyEncrypted: string;
+            fileKeyIv: string;
+            fileKeyAad: string;
             ivHex: string;
             downloadUrl: string;
         } | undefined;
@@ -270,6 +310,8 @@ export declare const EditMessageSchema: z.ZodObject<{
             fileSize: number;
             mimeTypeEncrypted: string;
             fileKeyEncrypted: string;
+            fileKeyIv: string;
+            fileKeyAad: string;
             ivHex: string;
             downloadUrl: string;
         } | undefined;
@@ -287,6 +329,8 @@ export declare const EditMessageSchema: z.ZodObject<{
             fileSize: number;
             mimeTypeEncrypted: string;
             fileKeyEncrypted: string;
+            fileKeyIv: string;
+            fileKeyAad: string;
             ivHex: string;
             downloadUrl: string;
         } | undefined;

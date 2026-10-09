@@ -8,8 +8,10 @@ exports.EncryptedFileMetadataSchema = zod_1.z.object({
     fileNameEncrypted: zod_1.z.string(),
     fileSize: zod_1.z.number().max(25 * 1024 * 1024), // 25MB max
     mimeTypeEncrypted: zod_1.z.string(),
-    fileKeyEncrypted: zod_1.z.string(),
-    ivHex: zod_1.z.string(),
+    fileKeyEncrypted: zod_1.z.string().min(1),
+    fileKeyIv: zod_1.z.string().min(1),
+    fileKeyAad: zod_1.z.string().min(1),
+    ivHex: zod_1.z.string().min(1),
     downloadUrl: zod_1.z.string().url()
 });
 exports.EncryptedPayloadSchema = zod_1.z.object({
